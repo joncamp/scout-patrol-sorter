@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scout Patrol Sorter</title>
+<link rel="stylesheet" href="styles.css?v=6" />
+<!-- CSV parsing -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<!-- XLSX parsing -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap">
+    <h1>⚜️ Scout Patrol Sorter</h1>
+    <p class="tagline">Sort training-course participants into single-gender patrols of 5–8 with policy-compliant tenting pairs.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- STEP 1: INPUT -->
+  <section class="card" id="step-input">
+    <h2><span class="step-num">1</span> Load participants</h2>
+    <p class="muted">Provide a CSV/Excel file, or paste rows (with a header row). Needed columns: name, email, unit, gender, birth date.</p>
+
+    <div class="input-grid">
+      <div class="input-tile">
+        <label class="file-label" for="fileInput">
+          📄 Choose CSV or Excel file
+          <input type="file" id="fileInput" accept=".csv,.tsv,.txt,.xlsx,.xls" hidden />
+        </label>
+        <div class="muted small" id="fileName">No file selected</div>
+      </div>
+      <div class="input-tile">
+        <label for="pasteInput" class="muted small">Or paste data (CSV / tab-separated):</label>
+        <textarea id="pasteInput" rows="5" placeholder="name,email,unit,gender,birthdate&#10;Alex Smith,alex@x.org,123,M,2009-04-12"></textarea>
+        <button class="btn ghost" id="parsePasteBtn">Parse pasted data</button>
+      </div>
+    </div>
+    <div class="row-actions">
+      <button class="btn ghost" id="loadSampleBtn">Load sample data</button>
+    </div>
+  </section>
+
+  <!-- STEP 2: MAPPING -->
+  <section class="card hidden" id="step-map">
+    <h2><span class="step-num">2</span> Map columns</h2>
+    <p class="muted">We auto-detected these. Adjust if needed.</p>
+    <div class="map-grid" id="mapGrid"></div>
+
+    <div class="options-row">
+      <label>Course start date (sets who is 18+):
+        <input type="date" id="courseDate" />
+      </label>
+      <label>Max tenting gap (days, 0–730):
+        <input type="number" id="ageGap" value="730" min="0" max="730" step="1" style="width:6rem" />
+      </label>
+      <label>Min patrol size:
+        <input type="number" id="minSize" value="5" min="2" step="1" style="width:4.5rem" />
+      </label>
+      <label>Max patrol size:
+        <input type="number" id="maxSize" value="8" min="2" step="1" style="width:4.5rem" />
+      </label>
+      <label>Max per unit / patrol:
+        <input type="number" id="maxUnit" value="2" min="1" step="1" style="width:4.5rem" />
+      </label>
+    </div>
+    <div class="row-actions">
+      <button class="btn primary" id="generateBtn">Generate patrols →</button>
+      <span class="muted small" id="loadStats"></span>
+    </div>
+  </section>
+
+  <!-- STEP 3: RESULTS -->
+  <section class="card hidden" id="step-results">
+    <div class="results-header">
+      <h2><span class="step-num">3</span> Patrols</h2>
+      <div class="row-actions no-print">
+        <button class="btn ghost" id="exportBtn">⬇ Export CSV</button>
+        <button class="btn ghost" id="printBtn">🖨 Print</button>
+        <button class="btn ghost" id="regenBtn">↻ Regenerate</button>
+      </div>
+    </div>
+    <div id="globalWarnings"></div>
+    <p class="muted small no-print" id="moveHint">Tip: use the “Move…” dropdown on any participant row to reassign them to another patrol (within the same gender). Tent pairs and warnings recalculate automatically.</p>
+    <div id="resultsContainer"></div>
+  </section>
+</main>
+
+<footer class="site-footer no-print">
+  <div class="wrap muted small">
+    Runs entirely in your browser — no data leaves your device. Tenting rules: youth sharing a tent are within the configured gap of each other's birth date (default 730 days ≈ 2 years), and <strong>anyone 18+ is tented separately from youth under 18</strong> (adults and youth never share a tent).
+    Always confirm assignments against the current Scouting America <em>Guide to Safe Scouting</em> and Youth Protection policies.
+  </div>
+</footer>
+
+<script src="app.js?v=6"></script>
+</body>
+</html>

@@ -570,6 +570,37 @@ Lena Maye,lena@example.org,412,F,2009-07-19`;
 
 /* ---------- wiring ---------- */
 $('fileInput').addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+// Drag-and-drop a CSV/Excel file onto the file tile (or anywhere on the load step).
+const ACCEPT_EXT = ['csv', 'tsv', 'txt', 'xlsx', 'xls'];
+function acceptableFile(file) {
+  if (!file) return false;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  return ACCEPT_EXT.includes(ext);
+}
+const fileDrop = $('fileDrop');
+['dragenter', 'dragover'].forEach(t => fileDrop.addEventListener(t, e => {
+  e.preventDefault(); e.stopPropagation();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  fileDrop.classList.add('drag-over');
+}));
+['dragleave', 'dragend'].forEach(t => fileDrop.addEventListener(t, e => {
+  e.preventDefault(); e.stopPropagation();
+  if (t === 'dragleave' && fileDrop.contains(e.relatedTarget)) return;
+  fileDrop.classList.remove('drag-over');
+}));
+fileDrop.addEventListener('drop', e => {
+  e.preventDefault(); e.stopPropagation();
+  fileDrop.classList.remove('drag-over');
+  const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+  if (!file) return;
+  if (!acceptableFile(file)) { alert('Unsupported file type. Please drop a .csv, .tsv, .txt, .xlsx, or .xls file.'); return; }
+  handleFile(file);
+});
+// Prevent the browser from navigating away if a file is dropped outside the zone.
+window.addEventListener('dragover', e => { e.preventDefault(); });
+window.addEventListener('drop', e => { if (!fileDrop.contains(e.target)) e.preventDefault(); });
+
 $('parsePasteBtn').addEventListener('click', parsePaste);
 $('loadSampleBtn').addEventListener('click', () => { $('pasteInput').value = SAMPLE; parsePaste(); });
 $('generateBtn').addEventListener('click', generate);

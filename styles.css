@@ -60,6 +60,10 @@ main.wrap { padding-top: 1.5rem; padding-bottom: 3rem; }
   font-weight: 600; cursor: pointer; background: #f0f7f4; transition: background .15s;
 }
 .file-label:hover { background: #e3f1ec; }
+.file-label .file-sub { display: block; margin-top: .35rem; font-weight: 400; font-size: .8rem; opacity: .8; }
+#fileDrop { border-radius: 10px; transition: box-shadow .15s; }
+#fileDrop.drag-over { box-shadow: 0 0 0 3px rgba(40,120,70,.35); }
+#fileDrop.drag-over .file-label { background: #cfe8db; border-style: solid; }
 textarea {
   width: 100%; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   font-size: .85rem; border: 1px solid var(--line); border-radius: 8px; padding: .6rem; resize: vertical;

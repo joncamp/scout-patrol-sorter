@@ -112,6 +112,19 @@ table.members tr:last-child td { border-bottom: none; }
 .move-select { font: inherit; font-size: .8rem; padding: .15rem .25rem; border: 1px solid var(--line); border-radius: 6px; background: #fff; max-width: 9rem; }
 .move-col { width: 1%; white-space: nowrap; }
 
+/* drag-and-drop */
+.member-row[draggable="true"] { cursor: grab; }
+.member-row[draggable="true"]:active { cursor: grabbing; }
+.member-row .drag-handle { color: var(--muted); cursor: grab; user-select: none; margin-right: .15rem; letter-spacing: -2px; }
+.member-row.dragging { opacity: .4; }
+.patrol.drop-target { outline: 2px dashed var(--green); outline-offset: -2px; box-shadow: 0 0 0 4px rgba(40,120,70,.12); }
+.new-patrol-zone {
+  border: 2px dashed var(--line); background: #fafbfb; min-height: 70px;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+}
+.new-patrol-zone .dropzone-inner { color: var(--muted); font-size: .85rem; padding: .8rem; }
+.new-patrol-zone.drop-target .dropzone-inner { color: var(--green); font-weight: 700; }
+
 .tents { margin-top: .6rem; border-top: 1px dashed var(--line); padding-top: .5rem; }
 .tents h5 { margin: 0 0 .35rem; font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
 .tent { font-size: .85rem; padding: .2rem 0; }

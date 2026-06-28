@@ -408,8 +408,8 @@ function render(result, globalWarn, doScroll = true) {
       const rows = patrol.slice().sort((a, b) => (a.birth || 0) - (b.birth || 0)).map(p => {
         const flag = (p.unit !== '—' && unitCounts[p.unit] > cur.opts.maxUnit) ? ' unit-flag' : '';
         const adultBadge = isAdult(p) ? ' <span class="badge adult">18+</span>' : '';
-        return `<tr>
-          <td>${esc(p.name)}</td>
+        return `<tr class="member-row" draggable="true" data-gi="${gi}" data-pi="${pi}" data-pid="${esc(String(p.id))}">
+          <td class="drag-cell"><span class="drag-handle" title="Drag to move">⠿</span> ${esc(p.name)}</td>
           <td class="${flag.trim()}">${esc(p.unit)}</td>
           <td>${fmtDate(p.birth)}</td>
           <td>${fmtAge(p.age)}${adultBadge}</td>
@@ -435,6 +435,8 @@ function render(result, globalWarn, doScroll = true) {
 
       const card = document.createElement('div');
       card.className = 'patrol';
+      card.dataset.gi = String(gi);
+      card.dataset.pi = String(pi);
       card.innerHTML = `
         <div class="patrol-head">
           <span class="pname">${name} Patrol</span>
@@ -455,6 +457,12 @@ function render(result, globalWarn, doScroll = true) {
         </div>`;
       grid.appendChild(card);
     });
+
+    const dz = document.createElement('div');
+    dz.className = 'patrol new-patrol-zone no-print';
+    dz.dataset.gi = String(gi);
+    dz.innerHTML = `<div class="dropzone-inner">＋ Drop here to create a new ${esc(grp.gender)} patrol</div>`;
+    grid.appendChild(dz);
 
     section.appendChild(grid);
     cont.appendChild(section);
@@ -533,4 +541,54 @@ $('resultsContainer').addEventListener('change', (e) => {
   const sel = e.target.closest && e.target.closest('.move-select');
   if (!sel || !sel.value) return;
   moveMember(+sel.dataset.gi, sel.dataset.pid, sel.value);
+});
+
+// Drag-and-drop to move members between patrols (same gender only).
+let DRAG = null;
+const rc = $('resultsContainer');
+function clearDropTargets() {
+  rc.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+}
+rc.addEventListener('dragstart', (e) => {
+  const tr = e.target.closest && e.target.closest('.member-row');
+  if (!tr) return;
+  DRAG = { gi: +tr.dataset.gi, pi: +tr.dataset.pi, pid: tr.dataset.pid };
+  tr.classList.add('dragging');
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', tr.dataset.pid); } catch (_) {}
+  }
+});
+rc.addEventListener('dragend', (e) => {
+  const tr = e.target.closest && e.target.closest('.member-row');
+  if (tr) tr.classList.remove('dragging');
+  clearDropTargets();
+  DRAG = null;
+});
+rc.addEventListener('dragover', (e) => {
+  if (!DRAG) return;
+  const tgt = e.target.closest && e.target.closest('.patrol');
+  if (!tgt || +tgt.dataset.gi !== DRAG.gi) return;
+  const isNew = tgt.classList.contains('new-patrol-zone');
+  if (!isNew && +tgt.dataset.pi === DRAG.pi) return; // its own patrol
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  if (!tgt.classList.contains('drop-target')) {
+    clearDropTargets();
+    tgt.classList.add('drop-target');
+  }
+});
+rc.addEventListener('dragleave', (e) => {
+  const tgt = e.target.closest && e.target.closest('.patrol');
+  if (tgt && !tgt.contains(e.relatedTarget)) tgt.classList.remove('drop-target');
+});
+rc.addEventListener('drop', (e) => {
+  if (!DRAG) return;
+  const tgt = e.target.closest && e.target.closest('.patrol');
+  if (!tgt || +tgt.dataset.gi !== DRAG.gi) return;
+  e.preventDefault();
+  const isNew = tgt.classList.contains('new-patrol-zone');
+  if (!isNew && +tgt.dataset.pi === DRAG.pi) { DRAG = null; clearDropTargets(); return; }
+  const d = DRAG; DRAG = null;
+  moveMember(d.gi, d.pid, isNew ? 'new' : String(+tgt.dataset.pi));
 });

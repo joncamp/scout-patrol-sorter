@@ -63,11 +63,15 @@ function ageYears(birth, ref) {
   return (ref - birth) / MS_PER_YEAR;
 }
 
+// True if the person is at least `years` old (by calendar) on the reference date.
+function isAtLeastAt(birth, ref, years) {
+  if (!birth) return false;
+  const cutoff = new Date(ref.getFullYear() - years, ref.getMonth(), ref.getDate());
+  return birth.getTime() <= cutoff.getTime();
+}
 // True if the person is 18 or older (by calendar) on the reference date.
 function isAdultAt(birth, ref) {
-  if (!birth) return false;
-  const cutoff = new Date(ref.getFullYear() - 18, ref.getMonth(), ref.getDate());
-  return birth.getTime() <= cutoff.getTime();
+  return isAtLeastAt(birth, ref, 18);
 }
 
 /* ---------- input loading ---------- */
@@ -153,7 +157,7 @@ function buildParticipants() {
       email: map.email ? r[map.email] : '',
       unit: String((map.unit ? r[map.unit] : '') ?? '').trim() || '—',
       gender: normGender(map.gender ? r[map.gender] : ''),
-      birth, age, adult: isAdultAt(birth, ref)
+      birth, age, adult: isAdultAt(birth, ref), age21: isAtLeastAt(birth, ref, 21)
     };
     if (!birth) issues.push(`Missing/unreadable birth date for "${esc(p.name)}".`);
     if (p.gender === 'Unknown') issues.push(`Unknown gender for "${esc(p.name)}".`);
@@ -310,10 +314,19 @@ function generate() {
   };
   if (opts.maxS < opts.minS) opts.maxS = opts.minS;
 
+  const excludeOlder = $('exclude21') && $('exclude21').checked;
+  let active = people, excluded = [];
+  if (excludeOlder) {
+    excluded = people.filter(p => p.age21);
+    active = people.filter(p => !p.age21);
+  }
+
   const byGender = { Male: [], Female: [], Unknown: [] };
-  people.forEach(p => (byGender[p.gender] || byGender.Unknown).push(p));
+  active.forEach(p => (byGender[p.gender] || byGender.Unknown).push(p));
 
   const globalWarn = [];
+  if (excluded.length)
+    globalWarn.push(`${excluded.length} participant(s) aged 21+ were excluded from patrols (listed at the bottom).`);
   if (byGender.Unknown.length)
     globalWarn.push(`${byGender.Unknown.length} participant(s) have unknown gender and could not be placed in a single-gender patrol. Fix the gender column and regenerate.`);
   if (issues.length) {
@@ -321,7 +334,7 @@ function generate() {
     globalWarn.push(uniq.slice(0, 8).join(' ') + (uniq.length > 8 ? ` …(+${uniq.length - 8} more)` : ''));
   }
 
-  const result = { ref, genders: [], opts, unplaced: byGender.Unknown };
+  const result = { ref, genders: [], opts, unplaced: byGender.Unknown, excluded };
   for (const g of ['Male', 'Female']) {
     if (!byGender[g].length) continue;
     const built = buildPatrolsForGender(byGender[g], opts);
@@ -341,14 +354,28 @@ function fmtDate(d) {
   return `${y}-${m}-${da}`;
 }
 
-function moveSelectHtml(gi, pi, npatrols, pid) {
+function patrolDisplayName(patrols, k) {
+  const p = patrols[k];
+  return (p && p.patrolName) || PATROL_NAMES[k % PATROL_NAMES.length];
+}
+
+function moveSelectHtml(gi, pi, patrols, pid) {
+  const npatrols = patrols.length;
   let o = `<option value="">Move…</option>`;
   for (let k = 0; k < npatrols; k++) {
     if (k === pi) continue;
-    o += `<option value="${k}">→ ${PATROL_NAMES[k % PATROL_NAMES.length]}</option>`;
+    o += `<option value="${k}">→ ${esc(patrolDisplayName(patrols, k))}</option>`;
   }
   o += `<option value="new">→ New patrol</option>`;
   return `<select class="move-select" data-gi="${gi}" data-pid="${esc(String(pid))}">${o}</select>`;
+}
+
+function renamePatrol(gi, pi, value) {
+  const grp = CURRENT && CURRENT.genders[gi];
+  if (!grp || !grp.patrols[pi]) return;
+  const v = String(value == null ? '' : value).trim();
+  grp.patrols[pi].patrolName = v || PATROL_NAMES[pi % PATROL_NAMES.length];
+  render(null, null, false);
 }
 
 function moveMember(gi, pid, target) {
@@ -396,7 +423,8 @@ function render(result, globalWarn, doScroll = true) {
     const npatrols = grp.patrols.length;
 
     grp.patrols.forEach((patrol, pi) => {
-      const name = PATROL_NAMES[pi % PATROL_NAMES.length];
+      if (!patrol.patrolName) patrol.patrolName = PATROL_NAMES[pi % PATROL_NAMES.length];
+      const name = patrol.patrolName;
       const ages = patrol.map(p => p.age).filter(a => a != null);
       const ageRange = ages.length ? `${fmtAge(Math.min(...ages))}–${fmtAge(Math.max(...ages))} yrs` : 'ages n/a';
       const sizeWarn = (patrol.length < cur.opts.minS || patrol.length > cur.opts.maxS);
@@ -414,7 +442,7 @@ function render(result, globalWarn, doScroll = true) {
           <td>${fmtDate(p.birth)}</td>
           <td>${fmtAge(p.age)}${adultBadge}</td>
           <td class="muted">${esc(p.email)}</td>
-          <td class="move-col no-print">${moveSelectHtml(gi, pi, npatrols, p.id)}</td>
+          <td class="move-col no-print">${moveSelectHtml(gi, pi, grp.patrols, p.id)}</td>
         </tr>`;
       }).join('');
 
@@ -439,7 +467,10 @@ function render(result, globalWarn, doScroll = true) {
       card.dataset.pi = String(pi);
       card.innerHTML = `
         <div class="patrol-head">
-          <span class="pname">${name} Patrol</span>
+          <span class="pname">
+            <input class="pname-input no-print" type="text" data-gi="${gi}" data-pi="${pi}" value="${esc(name)}" aria-label="Patrol name" title="Click to rename" />
+            <span class="pname-print print-only">${esc(name)} Patrol</span>
+          </span>
           <span class="pmeta">${patrol.length} youth · ${ageRange}</span>
         </div>
         <div class="patrol-body">
@@ -467,6 +498,16 @@ function render(result, globalWarn, doScroll = true) {
     section.appendChild(grid);
     cont.appendChild(section);
   });
+
+  if (cur.excluded && cur.excluded.length) {
+    const sec = document.createElement('div');
+    sec.className = 'gender-group';
+    sec.innerHTML = `<h3>Excluded — adults 21 and older (${cur.excluded.length})</h3>` +
+      `<div class="patrol-grid"><div class="patrol"><div class="patrol-body"><table class="members"><thead><tr><th>Name</th><th>Unit</th><th>Birth date</th><th>Age</th><th>Email</th></tr></thead><tbody>` +
+      cur.excluded.slice().sort((a, b) => (a.birth || 0) - (b.birth || 0)).map(p => `<tr><td>${esc(p.name)}</td><td>${esc(p.unit)}</td><td>${fmtDate(p.birth)}</td><td>${fmtAge(p.age)}</td><td class="muted">${esc(p.email)}</td></tr>`).join('') +
+      `</tbody></table></div></div></div>`;
+    cont.appendChild(sec);
+  }
 
   if (cur.unplaced.length) {
     const sec = document.createElement('div');
@@ -536,11 +577,19 @@ $('regenBtn').addEventListener('click', generate);
 $('exportBtn').addEventListener('click', exportCsv);
 $('printBtn').addEventListener('click', () => window.print());
 
-// Delegated handler for the per-row "Move…" dropdowns.
+// Delegated handler for the per-row "Move…" dropdowns and patrol-name renaming.
 $('resultsContainer').addEventListener('change', (e) => {
   const sel = e.target.closest && e.target.closest('.move-select');
-  if (!sel || !sel.value) return;
-  moveMember(+sel.dataset.gi, sel.dataset.pid, sel.value);
+  if (sel && sel.value) { moveMember(+sel.dataset.gi, sel.dataset.pid, sel.value); return; }
+  const inp = e.target.closest && e.target.closest('.pname-input');
+  if (inp) { renamePatrol(+inp.dataset.gi, +inp.dataset.pi, inp.value); }
+});
+// Commit a patrol rename on Enter (blur triggers the change handler above).
+$('resultsContainer').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.closest && e.target.closest('.pname-input')) {
+    e.preventDefault();
+    e.target.blur();
+  }
 });
 
 // Drag-and-drop to move members between patrols (same gender only).

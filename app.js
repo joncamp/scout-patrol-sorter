@@ -354,22 +354,6 @@ function fmtDate(d) {
   return `${y}-${m}-${da}`;
 }
 
-function patrolDisplayName(patrols, k) {
-  const p = patrols[k];
-  return (p && p.patrolName) || PATROL_NAMES[k % PATROL_NAMES.length];
-}
-
-function moveSelectHtml(gi, pi, patrols, pid) {
-  const npatrols = patrols.length;
-  let o = `<option value="">Move…</option>`;
-  for (let k = 0; k < npatrols; k++) {
-    if (k === pi) continue;
-    o += `<option value="${k}">→ ${esc(patrolDisplayName(patrols, k))}</option>`;
-  }
-  o += `<option value="new">→ New patrol</option>`;
-  return `<select class="move-select" data-gi="${gi}" data-pid="${esc(String(pid))}">${o}</select>`;
-}
-
 function renamePatrol(gi, pi, value) {
   const grp = CURRENT && CURRENT.genders[gi];
   if (!grp || !grp.patrols[pi]) return;
@@ -433,7 +417,7 @@ function render(result, globalWarn, doScroll = true) {
       const unitCounts = {};
       patrol.forEach(p => unitCounts[p.unit] = (unitCounts[p.unit] || 0) + 1);
 
-      const rows = patrol.slice().sort((a, b) => (a.birth || 0) - (b.birth || 0)).map(p => {
+      const rows = patrol.slice().sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' })).map(p => {
         const flag = (p.unit !== '—' && unitCounts[p.unit] > cur.opts.maxUnit) ? ' unit-flag' : '';
         const adultBadge = isAdult(p) ? ' <span class="badge adult">18+</span>' : '';
         return `<tr class="member-row" draggable="true" data-gi="${gi}" data-pi="${pi}" data-pid="${esc(String(p.id))}">
@@ -442,7 +426,6 @@ function render(result, globalWarn, doScroll = true) {
           <td>${fmtDate(p.birth)}</td>
           <td>${fmtAge(p.age)}${adultBadge}</td>
           <td class="muted">${esc(p.email)}</td>
-          <td class="move-col no-print">${moveSelectHtml(gi, pi, grp.patrols, p.id)}</td>
         </tr>`;
       }).join('');
 
@@ -477,7 +460,7 @@ function render(result, globalWarn, doScroll = true) {
           ${sizeWarn ? `<div class="err">Size ${patrol.length} is outside ${cur.opts.minS}–${cur.opts.maxS}.</div>` : ''}
           ${overage ? `<div class="warn">More than ${cur.opts.maxUnit} from one unit (couldn't fully separate).</div>` : ''}
           <table class="members">
-            <thead><tr><th>Name</th><th>Unit</th><th>Birth date</th><th>Age</th><th>Email</th><th class="move-col no-print">Move</th></tr></thead>
+            <thead><tr><th>Name</th><th>Unit</th><th>Birth date</th><th>Age</th><th>Email</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
           <div class="tents">
@@ -608,10 +591,8 @@ $('regenBtn').addEventListener('click', generate);
 $('exportBtn').addEventListener('click', exportCsv);
 $('printBtn').addEventListener('click', () => window.print());
 
-// Delegated handler for the per-row "Move…" dropdowns and patrol-name renaming.
+// Delegated handler for patrol-name renaming.
 $('resultsContainer').addEventListener('change', (e) => {
-  const sel = e.target.closest && e.target.closest('.move-select');
-  if (sel && sel.value) { moveMember(+sel.dataset.gi, sel.dataset.pid, sel.value); return; }
   const inp = e.target.closest && e.target.closest('.pname-input');
   if (inp) { renamePatrol(+inp.dataset.gi, +inp.dataset.pi, inp.value); }
 });

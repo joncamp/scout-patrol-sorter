@@ -63,3 +63,7 @@ git push -u origin main
 
 All parsing and sorting happen locally in your browser using PapaParse and SheetJS loaded
 from a CDN. No participant data is ever transmitted.
+
+## License
+
+[MIT](./LICENSE) © Jon Campbell

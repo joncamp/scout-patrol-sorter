@@ -586,35 +586,45 @@ function exportCsv() {
   URL.revokeObjectURL(a.href);
 }
 
-/* ---------- sample ---------- */
-const SAMPLE = `name,email,unit,gender,birthdate
-Alex Carter,alex@example.org,101,M,2009-03-14
-Ben Diaz,ben@example.org,101,M,2009-07-22
-Caleb Fox,caleb@example.org,101,M,2010-01-05
-Dylan Grant,dylan@example.org,205,M,2009-11-30
-Ethan Hill,ethan@example.org,205,Male,2010-05-18
-Finn Jones,finn@example.org,205,M,2008-09-09
-Gabe Kim,gabe@example.org,310,M,2009-02-27
-Henry Lee,henry@example.org,310,M,2010-08-14
-Ian Moore,ian@example.org,412,M,2008-12-01
-Jack Nolan,jack@example.org,412,M,2009-06-19
-Kyle Owens,kyle@example.org,412,M,2010-03-03
-Liam Park,liam@example.org,101,M,2009-10-25
-Mason Reed,mason@example.org,205,M,2010-07-07
-Noah Stone,noah@example.org,310,M,2008-04-16
-Owen Tate,owen@example.org,310,M,2009-09-29
-Ava Brooks,ava@example.org,101,F,2009-04-10
-Bella Cruz,bella@example.org,101,F,2009-08-21
-Chloe Dean,chloe@example.org,205,F,2010-02-12
-Dana Ellis,dana@example.org,205,Female,2009-12-05
-Ella Frost,ella@example.org,310,F,2008-10-30
-Faith Gray,faith@example.org,310,F,2010-06-22
-Grace Hunt,grace@example.org,412,F,2009-01-17
-Hannah Ives,hannah@example.org,412,F,2010-09-08
-Iris James,iris@example.org,101,F,2008-11-26
-Jade Klein,jade@example.org,205,F,2009-05-14
-Kira Lowe,kira@example.org,310,F,2010-04-01
-Lena Maye,lena@example.org,412,F,2009-07-19`;
+/* ---------- sample ----------
+   Chosen to exercise every feature: single-gender patrols, unit crowding
+   (Troop 101 has 4 boys, Troop 300 has 3 girls) for the max-per-unit rule,
+   a dietary-restrictions column for spread/concentrate, 18+ Venturing/Sea Scout
+   participants (tented separately from youth), and 21+ members for the
+   "Exclude adults 21 and older" option. Odd patrol sizes show solo tents. */
+const SAMPLE = `name,email,unit,gender,birthdate,dietary
+Aiden Brooks,aiden@example.org,101,M,2010-03-14,Vegetarian
+Bennett Cole,bennett@example.org,101,Male,2010-09-02,None
+Caleb Diaz,caleb@example.org,101,M,2011-01-20,Peanut allergy
+Dylan Ford,dylan@example.org,101,M,2009-11-30,
+Elijah Grant,elijah@example.org,205,M,2010-05-18,None
+Finn Hayes,finn@example.org,205,Boy,2011-07-09,Gluten free
+Gabriel Innes,gabriel@example.org,205,M,2009-02-27,None
+Henry James,henry@example.org,310,M,2010-08-14,Halal
+Isaac Knox,isaac@example.org,310,M,2012-03-03,
+Jack Lowe,jack@example.org,310,M,2013-06-19,None
+Kyle Moore,kyle@example.org,412,M,2010-10-25,None
+Liam Nash,liam@example.org,412,M,2011-04-07,
+Mason Owens,mason@example.org,55,M,2009-12-01,Lactose intolerant
+Noah Pratt,noah@example.org,55,M,2011-02-16,None
+Owen Reid,owen@example.org,720,M,2012-05-22,None
+Quinn Vale,quinn@example.org,720,Male,2007-05-10,Vegan
+Ryan West,ryan@example.org,88,M,2004-02-15,None
+Ava Bright,ava@example.org,300,F,2010-04-10,None
+Bella Cruz,bella@example.org,300,Female,2010-08-21,Vegetarian
+Chloe Dean,chloe@example.org,300,F,2011-02-12,None
+Dana Ellis,dana@example.org,301,Girl,2009-12-05,Nut allergy
+Ella Frost,ella@example.org,301,F,2010-06-22,None
+Faith Gray,faith@example.org,420,F,2011-01-17,None
+Grace Hunt,grace@example.org,420,F,2010-09-08,Gluten free
+Hannah Ives,hannah@example.org,533,F,2009-05-14,None
+Iris James,iris@example.org,533,Female,2011-07-26,
+Jade Klein,jade@example.org,650,G,2010-03-01,Dairy-free
+Kira Lowe,kira@example.org,650,F,2012-04-19,None
+Lena Maye,lena@example.org,777,F,2011-11-30,None
+Mia Nolan,mia@example.org,777,F,2009-07-19,None
+Nora Pike,nora@example.org,808,Female,2007-03-08,Vegetarian
+Olive Quinn,olive@example.org,808,F,2004-06-20,None`;
 
 /* ---------- wiring ---------- */
 $('fileInput').addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });

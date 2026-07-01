@@ -58,6 +58,14 @@ function normGender(v) {
   return 'Unknown';
 }
 
+// Treat a dietary-restrictions cell as "flagged" unless it's blank or an explicit
+// negative (no / none / n/a). Any other text (e.g. "Gluten free", "Yes") counts.
+function parseDietYes(v) {
+  const s = String(v ?? '').trim().toLowerCase().replace(/[.\s]/g, '');
+  if (!s) return false;
+  return !['no', 'none', 'n/a', 'na', 'false', '0', '-', 'nil', 'nan'].includes(s);
+}
+
 function ageYears(birth, ref) {
   if (!birth) return null;
   return (ref - birth) / MS_PER_YEAR;
@@ -118,6 +126,7 @@ const FIELD_DEFS = [
   { key: 'unit',   label: 'Unit #',     pats: [/unit/i, /troop/i, /crew/i, /pack|ship|post/i] },
   { key: 'gender', label: 'Gender',     pats: [/gender/i, /sex/i] },
   { key: 'birth',  label: 'Birth date', pats: [/birth/i, /\bdob\b/i, /b-?day/i] },
+  { key: 'diet',   label: 'Dietary restrictions', pats: [/diet/i, /restriction/i, /allerg/i] },
 ];
 
 function buildMappingUI() {
@@ -157,7 +166,8 @@ function buildParticipants() {
       email: map.email ? r[map.email] : '',
       unit: String((map.unit ? r[map.unit] : '') ?? '').trim() || '—',
       gender: normGender(map.gender ? r[map.gender] : ''),
-      birth, age, adult: isAdultAt(birth, ref), age21: isAtLeastAt(birth, ref, 21)
+      birth, age, adult: isAdultAt(birth, ref), age21: isAtLeastAt(birth, ref, 21),
+      diet: parseDietYes(map.diet ? r[map.diet] : '')
     };
     if (!birth) issues.push(`Missing/unreadable birth date for "${esc(p.name)}".`);
     if (p.gender === 'Unknown') issues.push(`Unknown gender for "${esc(p.name)}".`);
@@ -294,6 +304,51 @@ function balanceUnits(patrols, maxUnit, maxGap, minS, maxS) {
   return patrols;
 }
 
+/* ---------- dietary concentration / distribution ---------- */
+function dietCount(patrol) {
+  return patrol.reduce((n, p) => n + (p.diet ? 1 : 0), 0);
+}
+
+// Rearrange members (1-for-1 swaps between patrols) to either spread dietary-
+// restricted youth evenly ('distribute') or gather them into fewer patrols
+// ('concentrate'). Never worsens unit overage or tent age-gap warnings, so it
+// respects the constraints established by balanceUnits.
+function balanceDiet(patrols, mode, maxUnit, maxGap) {
+  if (mode !== 'concentrate' && mode !== 'distribute') return patrols;
+  for (let pass = 0; pass < 12; pass++) {
+    let improved = false;
+    for (let i = 0; i < patrols.length; i++) {
+      for (let j = 0; j < patrols.length; j++) {
+        if (i === j) continue;
+        const ci = dietCount(patrols[i]);
+        const cj = dietCount(patrols[j]);
+        // Moving one flagged member i -> j changes sum-of-squares by 2*(cj - ci + 1).
+        // distribute wants that negative (cj <= ci-2); concentrate wants it positive (cj >= ci).
+        const wants = mode === 'distribute' ? (cj <= ci - 2) : (cj >= ci);
+        if (!wants) continue;
+        let done = false;
+        for (let a = 0; a < patrols[i].length && !done; a++) {
+          if (!patrols[i][a].diet) continue;
+          for (let b = 0; b < patrols[j].length; b++) {
+            if (patrols[j][b].diet) continue;
+            const A = patrols[i].slice(); const B = patrols[j].slice();
+            A[a] = patrols[j][b]; B[b] = patrols[i][a];
+            const beforeOver = unitOverage(patrols[i], maxUnit) + unitOverage(patrols[j], maxUnit);
+            const afterOver = unitOverage(A, maxUnit) + unitOverage(B, maxUnit);
+            if (afterOver > beforeOver) continue;
+            const beforeWarn = tentGapWarnCount(patrols[i], maxGap) + tentGapWarnCount(patrols[j], maxGap);
+            const afterWarn = tentGapWarnCount(A, maxGap) + tentGapWarnCount(B, maxGap);
+            if (afterWarn > beforeWarn) continue;
+            patrols[i] = A; patrols[j] = B; improved = true; done = true; break;
+          }
+        }
+      }
+    }
+    if (!improved) break;
+  }
+  return patrols;
+}
+
 /* ---------- main sort ---------- */
 function buildPatrolsForGender(people, opts) {
   const sorted = people.slice().sort((a, b) => (a.birth || 0) - (b.birth || 0));
@@ -302,6 +357,7 @@ function buildPatrolsForGender(people, opts) {
   let patrols = [], idx = 0;
   for (const sz of plan.sizes) { patrols.push(sorted.slice(idx, idx + sz)); idx += sz; }
   patrols = balanceUnits(patrols, opts.maxUnit, opts.maxGap, opts.minS, opts.maxS);
+  patrols = balanceDiet(patrols, opts.dietMode, opts.maxUnit, opts.maxGap);
   return { patrols, outOfRange: plan.outOfRange };
 }
 
@@ -317,6 +373,7 @@ function generate() {
     maxS: Math.max(2, +$('maxSize').value || 8),
     maxUnit: Math.max(1, +$('maxUnit').value || 2),
     maxGap: gapDays,
+    dietMode: ($('dietMode') && $('dietMode').value) || 'none',
   };
   if (opts.maxS < opts.minS) opts.maxS = opts.minS;
 
@@ -419,6 +476,7 @@ function render(result, globalWarn, doScroll = true) {
       const ageRange = ages.length ? `${fmtAge(Math.min(...ages))}–${fmtAge(Math.max(...ages))} yrs` : 'ages n/a';
       const sizeWarn = (patrol.length < cur.opts.minS || patrol.length > cur.opts.maxS);
       const overage = unitOverage(patrol, cur.opts.maxUnit);
+      const dietN = patrol.filter(p => p.diet).length;
 
       const unitCounts = {};
       patrol.forEach(p => unitCounts[p.unit] = (unitCounts[p.unit] || 0) + 1);
@@ -431,6 +489,7 @@ function render(result, globalWarn, doScroll = true) {
           <td class="${flag.trim()}">${esc(p.unit)}</td>
           <td>${fmtDate(p.birth)}</td>
           <td>${fmtAge(p.age)}${adultBadge}</td>
+          <td class="diet-cell">${p.diet ? '<span class="badge diet">Yes</span>' : ''}</td>
           <td class="muted">${esc(p.email)}</td>
         </tr>`;
       }).join('');
@@ -447,7 +506,7 @@ function render(result, globalWarn, doScroll = true) {
       tents.forEach((t, ti) => t.members.forEach(x => LAST_EXPORT.push({
         patrol: `${grp.gender} - ${name}`, gender: grp.gender, tent: ti + 1,
         name: x.name, unit: x.unit, birth: fmtDate(x.birth), age: x.age == null ? '' : x.age.toFixed(1),
-        category: isAdult(x) ? 'Adult (18+)' : 'Youth', email: x.email
+        category: isAdult(x) ? 'Adult (18+)' : 'Youth', diet: x.diet ? 'Yes' : 'No', email: x.email
       })));
 
       const card = document.createElement('div');
@@ -460,13 +519,13 @@ function render(result, globalWarn, doScroll = true) {
             <input class="pname-input no-print" type="text" data-gi="${gi}" data-pi="${pi}" value="${esc(name)}" aria-label="Patrol name" title="Click to rename" />
             <span class="pname-print print-only">${esc(name)} Patrol</span>
           </span>
-          <span class="pmeta">${patrol.length} youth · ${ageRange}</span>
+          <span class="pmeta">${patrol.length} youth · ${ageRange}${dietN ? ` · <span class="diet-meta">${dietN} dietary</span>` : ''}</span>
         </div>
         <div class="patrol-body">
           ${sizeWarn ? `<div class="err">Size ${patrol.length} is outside ${cur.opts.minS}–${cur.opts.maxS}.</div>` : ''}
           ${overage ? `<div class="warn">More than ${cur.opts.maxUnit} from one unit (couldn't fully separate).</div>` : ''}
           <table class="members">
-            <thead><tr><th>Name</th><th>Unit</th><th>Birth date</th><th>Age</th><th>Email</th></tr></thead>
+            <thead><tr><th>Name</th><th>Unit</th><th>Birth date</th><th>Age</th><th>Diet</th><th>Email</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
           <div class="tents">
@@ -517,7 +576,7 @@ let LAST_EXPORT = [];
 function exportCsv() {
   if (!LAST_EXPORT.length) return;
   const csv = Papa.unparse(LAST_EXPORT.map(r => ({
-    Patrol: r.patrol, Gender: r.gender, Tent: r.tent, Name: r.name, Unit: r.unit, BirthDate: r.birth, Age: r.age, Category: r.category, Email: r.email
+    Patrol: r.patrol, Gender: r.gender, Tent: r.tent, Name: r.name, Unit: r.unit, BirthDate: r.birth, Age: r.age, Category: r.category, Dietary: r.diet, Email: r.email
   })));
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');

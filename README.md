@@ -26,7 +26,7 @@ Given a list of participants (**name, email, unit #, gender, birth date**), it f
 
 1. Open the page.
 2. **Load participants** — choose a `.csv`/`.xlsx` file, or paste rows (with a header line). Click *Load sample data* to try it.
-3. **Map columns** — the tool auto-detects name/email/unit/gender/birth date; override if needed. Set the **course start date** (used to determine who is 18+ during the event) and tweak the tenting gap (days), patrol size, and per-unit options. Optionally check **Exclude adults 21 and older** to leave 21+ participants out of patrols (they're listed separately).
+3. **Map columns** — the tool auto-detects name/email/unit/gender/birth date (and an optional **dietary restrictions** column); override if needed. Set the **course start date** (used to determine who is 18+ during the event) and tweak the tenting gap (days), patrol size, and per-unit options. Optionally check **Exclude adults 21 and older** to leave 21+ participants out of patrols (they're listed separately). Use the **Dietary restrictions** option to *spread* restricted youth evenly across patrols or *group* them into fewer patrols (never at the expense of the unit or tent-gap rules).
 4. **Generate** — review patrol cards with member tables and tent assignments. Warnings highlight any rule that couldn't be fully satisfied.
 5. **Adjust** — **drag participants** between patrol cards (or use the *Move…* dropdown), and **click a patrol's name to rename it**. Tent pairs and warnings recalculate automatically.
 6. **Export CSV** or **Print** the results.

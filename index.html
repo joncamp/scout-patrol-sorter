@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Scout Patrol Sorter</title>
-<link rel="stylesheet" href="styles.css?v=12" />
+<link rel="stylesheet" href="styles.css?v=13" />
 <!-- CSV parsing -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <!-- XLSX parsing -->
@@ -66,6 +66,13 @@
       <label>Max per unit / patrol:
         <input type="number" id="maxUnit" value="2" min="1" step="1" style="width:4.5rem" />
       </label>
+      <label>Dietary restrictions:
+        <select id="dietMode" style="width:13rem">
+          <option value="none" selected>Don’t consider</option>
+          <option value="distribute">Spread evenly across patrols</option>
+          <option value="concentrate">Group into fewer patrols</option>
+        </select>
+      </label>
       <label class="check-opt"><input type="checkbox" id="exclude21" /> Exclude adults 21 and older</label>
     </div>
     <div class="row-actions">
@@ -97,6 +104,6 @@
   </div>
 </footer>
 
-<script src="app.js?v=12"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>

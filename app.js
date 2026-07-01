@@ -246,41 +246,47 @@ function unitOverage(patrol, maxUnit) {
   return over;
 }
 
+function tentGapWarnCount(patrol, maxGap) {
+  return assignTents(patrol, maxGap).warnings.filter(w => /exceeds/.test(w)).length;
+}
+
 function balanceUnits(patrols, maxUnit, maxGap, minS, maxS) {
-  // try swaps between adjacent (similar-age) patrols to reduce unit overage,
-  // without breaking tentability.
-  const tentOK = (patrol) => assignTents(patrol, maxGap).warnings
-    .every(w => !/exceeds/.test(w));
-  for (let pass = 0; pass < 6; pass++) {
+  // Reduce >maxUnit-per-unit crowding via 1-for-1 swaps between ANY two patrols.
+  // A swap is accepted only if it lowers total unit overage AND does not increase
+  // the number of tent age-gap violations. Comparing warning *counts* (rather than
+  // demanding zero) means an unavoidable outlier birthdate in a patrol can't block
+  // all balancing, while still never trading a unit fix for a new tenting problem.
+  for (let pass = 0; pass < 12; pass++) {
     let improved = false;
     for (let i = 0; i < patrols.length; i++) {
       if (unitOverage(patrols[i], maxUnit) === 0) continue;
-      // find a surplus member in patrol i
       const counts = {};
       patrols[i].forEach(p => counts[p.unit] = (counts[p.unit] || 0) + 1);
-      const surplusUnit = Object.keys(counts).find(u => u !== '—' && counts[u] > maxUnit);
-      if (!surplusUnit) continue;
-      const candIdxs = patrols[i].map((p, idx) => p.unit === surplusUnit ? idx : -1).filter(x => x >= 0);
-      for (const j of [i - 1, i + 1]) {
-        if (j < 0 || j >= patrols.length) continue;
+      const surplusUnits = Object.keys(counts).filter(u => u !== '—' && counts[u] > maxUnit);
+      for (const surplusUnit of surplusUnits) {
+        const candIdxs = patrols[i].map((p, idx) => p.unit === surplusUnit ? idx : -1).filter(x => x >= 0);
         let done = false;
-        for (const ci of candIdxs) {
-          const a = patrols[i][ci];
-          for (let cj = 0; cj < patrols[j].length; cj++) {
-            const b = patrols[j][cj];
-            if (b.unit === surplusUnit) continue;
-            // tentative swap
-            const A = patrols[i].slice(); const B = patrols[j].slice();
-            A[ci] = b; B[cj] = a;
-            const beforeOver = unitOverage(patrols[i], maxUnit) + unitOverage(patrols[j], maxUnit);
-            const afterOver = unitOverage(A, maxUnit) + unitOverage(B, maxUnit);
-            if (afterOver < beforeOver && tentOK(A) && tentOK(B)) {
-              patrols[i] = A; patrols[j] = B; improved = true; done = true; break;
+        for (let j = 0; j < patrols.length && !done; j++) {
+          if (j === i) continue;
+          for (const ci of candIdxs) {
+            const a = patrols[i][ci];
+            for (let cj = 0; cj < patrols[j].length; cj++) {
+              const b = patrols[j][cj];
+              if (b.unit === surplusUnit) continue;
+              // tentative swap
+              const A = patrols[i].slice(); const B = patrols[j].slice();
+              A[ci] = b; B[cj] = a;
+              const beforeOver = unitOverage(patrols[i], maxUnit) + unitOverage(patrols[j], maxUnit);
+              const afterOver = unitOverage(A, maxUnit) + unitOverage(B, maxUnit);
+              const beforeWarn = tentGapWarnCount(patrols[i], maxGap) + tentGapWarnCount(patrols[j], maxGap);
+              const afterWarn = tentGapWarnCount(A, maxGap) + tentGapWarnCount(B, maxGap);
+              if (afterOver < beforeOver && afterWarn <= beforeWarn) {
+                patrols[i] = A; patrols[j] = B; improved = true; done = true; break;
+              }
             }
+            if (done) break;
           }
-          if (done) break;
         }
-        if (done) break;
       }
     }
     if (!improved) break;
